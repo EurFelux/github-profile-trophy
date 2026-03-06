@@ -28,13 +28,25 @@ const defaultHeaders = new Headers(
   },
 );
 
-export default (request: Request) =>
-  staticRenderRegeneration(request, {
+const allowedUsernames = (Deno.env.get("ALLOWED_USERNAMES") || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+export default (request: Request) => {
+  if (allowedUsernames.length > 0) {
+    const username = parseParams(request).get("username")?.toLowerCase();
+    if (!username || !allowedUsernames.includes(username)) {
+      return new Response("Forbidden", { status: 403 });
+    }
+  }
+  return staticRenderRegeneration(request, {
     revalidate: CONSTANTS.REVALIDATE_TIME,
     headers: defaultHeaders,
   }, function (req: Request) {
     return app(req);
   });
+};
 
 async function app(req: Request): Promise<Response> {
   const params = parseParams(req);
